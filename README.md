@@ -1,158 +1,141 @@
-local Frame = Instance.new("Frame")
-local UICorner = Instance.new("UICorner")
-local TextButton = Instance.new("TextButton")
-local UICorner_2 = Instance.new("UICorner")
+local player = game.Players.LocalPlayer
+local runService = game:GetService("RunService")
+local espFolder = Instance.new("Folder", workspace)
+espFolder.Name = "ActiveESP"
 
-Frame.Parent = game.StarterGui.ScreenGui
-Frame.BackgroundColor3 = Color3.fromRGB(229, 36, 2)
-Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
-Frame.BorderSizePixel = 0
-Frame.Position = UDim2.new(0.119402982, 0, 0.221544713, 0)
-Frame.Size = UDim2.new(0, 242, 0, 59)
+-- Cria a interface de botões
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "ESP_GUI"
 
-UICorner.Parent = Frame
+local function createButton(name, posX)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0, 80, 0, 30)
+	button.Position = UDim2.new(0, posX, 1, -40)
+	button.Text = name
+	button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.BorderSizePixel = 0
+	button.Name = name .. "_Button"
+	button.Parent = screenGui
+	return button
+end
 
-TextButton.Parent = Frame
-TextButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-TextButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
-TextButton.BorderSizePixel = 0
-TextButton.Position = UDim2.new(0.050439883, 0, 0.154584721, 0)
-TextButton.Size = UDim2.new(0, 217, 0, 39)
-TextButton.Font = Enum.Font.Gotham
-TextButton.Text = "ESP: Off"
-TextButton.TextColor3 = Color3.fromRGB(255, 0, 0)
-TextButton.TextScaled = true
-TextButton.TextSize = 14.000
-TextButton.TextTransparency = 0.170
-TextButton.TextWrapped = true
+local spawnBtn = createButton("Spawn", 10)
+local deleteBtn = createButton("Delete", 100)
 
-UICorner_2.Parent = TextButton
+-- Função para criar ESP em um jogador
+function createESP(target)
+	if target == player then return end
+	if not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then return end
 
-local function AMYU_fake_script()
-	local script = Instance.new('LocalScript', Frame)
+	local char = target.Character
+	local hrp = char:FindFirstChild("HumanoidRootPart")
 
-	local UIS = game:GetService('UserInputService')
-	local frame = script.Parent
-	local dragToggle = nil
-	local dragSpeed = 0.25
-	local dragStart = nil
-	local startPos = nil
-	
-	local function updateInput(input)
-		local delta = input.Position - dragStart
-		local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
-			startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-		game:GetService('TweenService'):Create(frame, TweenInfo.new(dragSpeed), {Position = position}):Play()
+	local function applyESP()
+		if not char or not hrp then return end
+		if workspace.ActiveESP:FindFirstChild(target.Name) then
+			workspace.ActiveESP:FindFirstChild(target.Name):Destroy()
+		end
+
+		local isBear = hrp:FindFirstChildOfClass("BillboardGui") ~= nil
+		local color = isBear and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0)
+		local role = isBear and "Bear" or "Survivor"
+
+		local container = Instance.new("Folder", workspace.ActiveESP)
+		container.Name = target.Name
+
+		-- Highlight
+		local highlight = Instance.new("Highlight")
+		highlight.FillTransparency = 1
+		highlight.OutlineColor = color
+		highlight.OutlineTransparency = 0
+		highlight.Adornee = isBear and hrp or char
+		highlight.Parent = container
+
+		-- BillboardGui com texto
+		local billboard = Instance.new("BillboardGui")
+		billboard.Size = UDim2.new(0, 200, 0, 50)
+		billboard.StudsOffset = Vector3.new(0, 3, 0)
+		billboard.AlwaysOnTop = true
+		billboard.Name = "ESP_Name"
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = color
+		label.TextStrokeTransparency = 0
+		label.TextStrokeColor3 = Color3.new(0, 0, 0)
+		label.Text = target.Name .. " (" .. role .. ")"
+		label.Font = Enum.Font.SourceSansBold
+		label.TextScaled = true
+		label.Parent = billboard
+
+		billboard.Parent = hrp
+		billboard.Parent = container
+
+		-- Beam
+		local a0 = Instance.new("Attachment", player.Character:WaitForChild("HumanoidRootPart"))
+		local a1 = Instance.new("Attachment", hrp)
+
+		local beam = Instance.new("Beam")
+		beam.Attachment0 = a0
+		beam.Attachment1 = a1
+		beam.Width0 = 0.1
+		beam.Width1 = 0.1
+		beam.FaceCamera = true
+		beam.Color = ColorSequence.new(color)
+		beam.Transparency = NumberSequence.new(0)
+		beam.Parent = container
 	end
-	
-	frame.InputBegan:Connect(function(input)
-		if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then 
-			dragToggle = true
-			dragStart = input.Position
-			startPos = frame.Position
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragToggle = false
-				end
-			end)
+
+	-- Aplica o ESP e escuta mudanças no HRP
+	applyESP()
+
+	local hrpConn
+	hrpConn = hrp.ChildAdded:Connect(function(child)
+		if child:IsA("BillboardGui") then
+			wait()
+			applyESP()
 		end
 	end)
-	
-	UIS.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-			if dragToggle then
-				updateInput(input)
-			end
+
+	hrp.ChildRemoved:Connect(function(child)
+		if child:IsA("BillboardGui") then
+			wait()
+			applyESP()
 		end
+	end)
+
+	-- Remove ESP quando o jogador morre ou some
+	char.AncestryChanged:Connect(function()
+		local esp = workspace.ActiveESP:FindFirstChild(target.Name)
+		if esp then esp:Destroy() end
+		if hrpConn then hrpConn:Disconnect() end
 	end)
 end
-coroutine.wrap(AMYU_fake_script)()
-local function QZXUQHD_fake_script()
-	local script = Instance.new('Script', TextButton)
 
-	local Players = game:GetService("Players")
-	local button = script.Parent
-	local textLabel = button:WaitForChild("TextLabel")
-	local isESPActive = false
-	local lines = {}
-	local boxes = {}
-	local billboardGUIs = {}
-	
-	local function createESP(player)
-		local line = Instance.new("Part")
-		line.Size = Vector3.new(0.1, 0.1, 1)
-		line.Anchored = true
-		line.CanCollide = false
-		line.Color = Color3.fromRGB(0, 255, 0)
-		line.Parent = workspace
-	
-		local box = Instance.new("Part")
-		box.Size = player.Character:WaitForChild("HumanoidRootPart").Size
-		box.Anchored = true
-		box.CanCollide = false
-		box.Color = Color3.fromRGB(0, 255, 0)
-		box.Parent = workspace
-	
-		local billboardGUI = Instance.new("BillboardGui")
-		billboardGUI.Adornee = player.Character:WaitForChild("HumanoidRootPart")
-		billboardGUI.Size = UDim2.new(0, 100, 0, 50)
-		billboardGUI.StudsOffset = Vector3.new(0, 3, 0)
-	
-		local textLabel = Instance.new("TextLabel")
-		textLabel.Size = UDim2.new(1, 0, 1, 0)
-		textLabel.Text = player.Name
-		textLabel.BackgroundTransparency = 1
-		textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-		textLabel.TextSize = 14
-		textLabel.Parent = billboardGUI
-		billboardGUI.Parent = workspace
-	
-		table.insert(lines, line)
-		table.insert(boxes, box)
-		table.insert(billboardGUIs, billboardGUI)
-	
-		return line, box, billboardGUI
-	end
-	
-	local function removeESP()
-		for _, line in ipairs(lines) do
-			line:Destroy()
-		end
-		for _, box in ipairs(boxes) do
-			box:Destroy()
-		end
-		for _, billboardGUI in ipairs(billboardGUIs) do
-			billboardGUI:Destroy()
-		end
-	
-		lines = {}
-		boxes = {}
-		billboardGUIs = {}
-	end
-	
-	local function updateESP()
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-				local line, box, billboardGUI = createESP(player)
-	
-				line.CFrame = CFrame.new(player.Character.HumanoidRootPart.Position, game.Players.LocalPlayer.Character.HumanoidRootPart.Position)
-				box.CFrame = CFrame.new(player.Character.HumanoidRootPart.Position)
-			end
+-- Botão Spawn
+spawnBtn.MouseButton1Click:Connect(function()
+	for _, plr in pairs(game.Players:GetPlayers()) do
+		if plr ~= player then
+			createESP(plr)
 		end
 	end
-	
-	button.MouseButton1Click:Connect(function()
-		if isESPActive then
-			textLabel.Text = "ESP: Off"
-			textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-			removeESP()
-		else
-			textLabel.Text = "ESP: On"
-			textLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-			updateESP()
+end)
+
+-- Botão Delete
+deleteBtn.MouseButton1Click:Connect(function()
+	if workspace:FindFirstChild("ActiveESP") then
+		workspace.ActiveESP:ClearAllChildren()
+	end
+end)
+
+-- Atualiza ESP para novos jogadores
+game.Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function()
+		wait(1)
+		if workspace:FindFirstChild("ActiveESP") and #workspace.ActiveESP:GetChildren() > 0 then
+			createESP(plr)
 		end
-		isESPActive = not isESPActive
 	end)
-	
-end
-coroutine.wrap(QZXUQHD_fake_script)()
+end)
